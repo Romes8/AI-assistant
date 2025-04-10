@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+  # Ollama for running the LLM
+  ollama:
+    container_name: ollama
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    networks:
+      - llm-network
+
+  # Chroma vector database
+  chroma:
+    container_name: chroma
+    image: chromadb/chroma:latest
+    volumes:
+      - chroma_data:/chroma/chroma
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    networks:
+      - llm-network
+
+  # Assistant API service
+  assistant-api:
+    container_name: assistant-api
+    build:
+      context: ./assistant
+    volumes:
+      - ./data:/app/data
+      - ./assistant:/app
+    ports:
+      - "5000:5000"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - CHROMA_HOST=http://chroma:8000
+      - MODEL_NAME=llama3.2:3b
+    depends_on:
+      - ollama
+      - chroma
+    restart: unless-stopped
+    networks:
+      - llm-network
+
+networks:
+  llm-network:
+    driver: bridge
+
+volumes:
+  ollama_data:
+  chroma_data:
